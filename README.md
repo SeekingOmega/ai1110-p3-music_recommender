@@ -247,6 +247,8 @@ These two are almost mirror images in acousticness: the Lofi Listener wants 0.80
 
 But both users have similar valence preferences (0.60 vs. 0.50) — they both like music that is emotionally neutral to slightly warm, not extremely happy or sad. In theory, some songs could score well for both users on valence alone. The reason they still do not share recommendations is that acousticness (weight 0.15) and genre (weight 0.18) together create enough separation to keep the lists distinct.
 
+**Please see `output.txt` for the full output of all profiles.**
+
 ---
 
 ## Limitations and Risks
@@ -292,6 +294,12 @@ Combines reflection and model card framing from the Module 3 guidance.
 
 > Please see `model_card.md`
 
+---
+
+## Extension features:
+
+- **Challenge 3:** I've included a simple genre diversity cap in the ranking step to prevent the top recommendations from being all the same genre. 
+- **Challenge 4:** I've beautified the terminal output by using the `rich` library.
 
 
 
