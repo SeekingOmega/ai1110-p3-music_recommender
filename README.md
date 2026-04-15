@@ -198,7 +198,7 @@ You can add more tests in `tests/test_recommender.py`.
 ---
 
 ## Results with default "pop/happy" profile
-<!-- help me add the "output-with-default-user-profile.png" here -->
+### Output with default user profile
 ![Output with default user profile](output-with-default-user-profile.png)
 
 ---
@@ -210,6 +210,42 @@ Use this section to document the experiments you ran. For example:
 - What happened when you changed the weight on genre from 2.0 to 0.5
 - What happened when you added tempo or valence to the score
 - How did your system behave for different types of users
+
+### Regular profiles
+
+| Profile | How my system behaves |
+|---|---|
+| **Pop Enthusiast** | Baseline happy path — strong genre+mood match, Sunrise City scores ~1.00 |
+| **Study Lofi Listener** | Acoustic/slow preferences — Library Rain dominates, diversity cap lets 2 lofi through then pulls in ambient |
+| **Late Night Driver** | Synthwave niche — Night Drive Loop scores 0.99, diversity cap limits synthwave to 2 and brings in related rock/hip-hop |
+
+### Adversarial / edge-case profiles
+
+| Profile | How my system behaves |
+|---|---|
+| **High Energy + Melancholic** | No song in the catalog matches both. Top score is only 0.69 — the system correctly cannot satisfy contradictory preferences. Rock genre match saves Storm Runner but mood match is 0 across the board. |
+| **Non-Existent Genre** | Genre score is 0 for every song, costing 0.18 off every score. Mood match (+0.25) becomes the deciding factor — mood carries the recommendation when genre fails. |
+| **Dead-Center Preferences** | Flat landscape as expected. Top 5 scores compress into 0.45–0.71 range (vs. 0.52–1.00 for Pop Enthusiast). The system has no strong signal, so many songs score similarly. |
+
+### Comparing the regular profiles
+
+**Pop Enthusiast vs. Study Lofi Listener — opposite ends of the spectrum**
+
+These two users want completely different things: high energy and low acousticness (Pop Enthusiast) versus low energy and high acousticness (Study Lofi Listener). Because of that, their top recommendations have almost zero overlap. The Pop Enthusiast gets Sunrise City and Rooftop Lights — bright, danceable, electronic-leaning tracks. The Lofi Listener gets Library Rain and Midnight Coding — quiet, acoustic, slow-tempo songs. This is exactly what you would expect: the Gaussian scoring punishes songs that are far from your preferred energy level, so a high-energy pop song will score near zero for someone who wants calm study music, and vice versa.
+
+What is interesting is who shows up third on each list. The Pop Enthusiast gets Bright Side Drive (pop/uplifting) — same genre, different mood. The Study Lofi Listener gets Spacewalk Thoughts (ambient/chill) — different genre, same mood. This shows that when the system runs out of perfect matches, it falls back on the next-heaviest weight. For the Pop user, genre match (0.18) edges out other features. For the Lofi user, mood match (0.25) is the stronger pull, so an ambient song with the right mood beats a lofi song with the wrong mood.
+
+**Pop Enthusiast vs. Late Night Driver — both want energy, different moods**
+
+Both users like energetic music (0.80 vs. 0.75), but the Pop Enthusiast wants it bright and happy while the Late Night Driver wants it dark and moody. The result: their top songs share similar energy proximity scores, but the mood weight (0.25) pushes them into completely different parts of the catalog. Night Drive Loop scores 0.99 for the Late Night Driver thanks to a perfect genre + mood match, but it would score poorly for the Pop Enthusiast because its low valence (0.49) and "moody" tag work against someone who wants happiness.
+
+One thing to notice: Glass Teeth (rock/moody) appears at #2 for the Late Night Driver but nowhere for the Pop Enthusiast. It has similar energy and acousticness to what both users want, but the "moody" mood match is worth 0.25 points for the Driver and 0.00 for the Pop user. A single categorical match can swing a song up or down by several ranks.
+
+**Study Lofi Listener vs. Late Night Driver — acoustic warmth vs. electronic grit**
+
+These two are almost mirror images in acousticness: the Lofi Listener wants 0.80 (warm, natural, guitar-and-rain sounds) while the Late Night Driver wants 0.15 (synthesizers, electronic production). This single feature creates a hard wall between their recommendations. Coffee Shop Stories (jazz, acousticness 0.89) appears at #4 for the Lofi Listener because its acoustic character is close to what they want, even though its genre and mood do not match. The Late Night Driver would never see that song because its acousticness score would be nearly zero.
+
+But both users have similar valence preferences (0.60 vs. 0.50) — they both like music that is emotionally neutral to slightly warm, not extremely happy or sad. In theory, some songs could score well for both users on valence alone. The reason they still do not share recommendations is that acousticness (weight 0.15) and genre (weight 0.18) together create enough separation to keep the lists distinct.
 
 ---
 
@@ -238,111 +274,24 @@ Write 1 to 2 paragraphs here about what you learned:
 - about how recommenders turn data into predictions
 - about where bias or unfairness could show up in systems like this
 
+**Tiny catalog with uneven genre depth.** The system only has 20 songs. Most genres have 2 representatives, but hip-hop, r&b, and folk each have only 1. This means the system cannot meaningfully compare songs within those genres, and a user who prefers one of them will quickly exhaust same-genre options.
+
+**No understanding of lyrics, language, or cultural context.** The system scores songs purely on numerical audio features and categorical tags. It has no way to know that two songs are about the same topic, that one song samples another, or that a folk song and a country song are culturally adjacent. A song with offensive lyrics would be recommended just as readily as any other if its numbers match.
+
+**Binary categorical scoring loses nuance.** Genre and mood are scored as exact match or nothing — there is no concept of "close enough." Indie pop and pop score 0 for each other even though a listener who likes one will often enjoy the other. This penalizes cross-genre discovery and makes the system more rigid than a real listener's taste.
+
+**Categorical weight dominance.** Mood (0.25) and genre (0.18) together control 43% of the total score. If a song misses on both, it can score at most 0.57 even with perfect numerical matches. This means the system is biased toward staying inside the user's stated genre and mood rather than surfacing sonically similar music across boundaries.
+
+**Diversity cap can hurt focused listeners.** The 2-songs-per-genre cap prevents the recommendations from being all lofi or all pop, which is usually good. But it also means a user who genuinely only wants lofi will be forced to see ambient, jazz, and folk songs filling the remaining slots — not because those songs match their taste, but because the cap artificially limits their preferred genre. We saw this clearly with the Pop Enthusiast profile: Gym Hero (pop/intense) scores 0.68 and would rank #4, but the diversity cap blocks it because Sunrise City and Bright Side Drive already fill the two pop slots. The cap treats all genres equally regardless of how many songs exist in each genre or how strongly the user prefers that genre.
 
 ---
 
 ## 7. `model_card_template.md`
 
-Combines reflection and model card framing from the Module 3 guidance. :contentReference[oaicite:2]{index=2}  
+Combines reflection and model card framing from the Module 3 guidance. 
 
-```markdown
-# 🎧 Model Card - Music Recommender Simulation
+> Please see `model_card.md`
 
-## 1. Model Name
 
-Give your recommender a name, for example:
 
-> VibeFinder 1.0
-
----
-
-## 2. Intended Use
-
-- What is this system trying to do
-- Who is it for
-
-Example:
-
-> This model suggests 3 to 5 songs from a small catalog based on a user's preferred genre, mood, and energy level. It is for classroom exploration only, not for real users.
-
----
-
-## 3. How It Works (Short Explanation)
-
-Describe your scoring logic in plain language.
-
-- What features of each song does it consider
-- What information about the user does it use
-- How does it turn those into a number
-
-Try to avoid code in this section, treat it like an explanation to a non programmer.
-
----
-
-## 4. Data
-
-Describe your dataset.
-
-- How many songs are in `data/songs.csv`
-- Did you add or remove any songs
-- What kinds of genres or moods are represented
-- Whose taste does this data mostly reflect
-
----
-
-## 5. Strengths
-
-Where does your recommender work well
-
-You can think about:
-- Situations where the top results "felt right"
-- Particular user profiles it served well
-- Simplicity or transparency benefits
-
----
-
-## 6. Limitations and Bias
-
-Where does your recommender struggle
-
-Some prompts:
-- Does it ignore some genres or moods
-- Does it treat all users as if they have the same taste shape
-- Is it biased toward high energy or one genre by default
-- How could this be unfair if used in a real product
-
----
-
-## 7. Evaluation
-
-How did you check your system
-
-Examples:
-- You tried multiple user profiles and wrote down whether the results matched your expectations
-- You compared your simulation to what a real app like Spotify or YouTube tends to recommend
-- You wrote tests for your scoring logic
-
-You do not need a numeric metric, but if you used one, explain what it measures.
-
----
-
-## 8. Future Work
-
-If you had more time, how would you improve this recommender
-
-Examples:
-
-- Add support for multiple users and "group vibe" recommendations
-- Balance diversity of songs instead of always picking the closest match
-- Use more features, like tempo ranges or lyric themes
-
----
-
-## 9. Personal Reflection
-
-A few sentences about what you learned:
-
-- What surprised you about how your system behaved
-- How did building this change how you think about real music recommenders
-- Where do you think human judgment still matters, even if the model seems "smart"
 
